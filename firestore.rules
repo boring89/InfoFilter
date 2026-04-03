@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (Firebase Auth UID)
+    // Fields:
+    //   - email: string (required, email format)
+    //   - language: string (required)
+    //   - feeds: list (required, max 50 items)
+    //   - updatedAt: timestamp (required)
+    //   - isUnlimited: bool (optional, default false)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "ai033@jhsh.ntpc.edu.tw" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'language', 'feeds', 'updatedAt']) &&
+             isValidEmail(data.email) &&
+             data.language is string &&
+             data.feeds is list &&
+             data.feeds.size() <= 50 &&
+             (!('userApiKey' in data) || (data.userApiKey is string && data.userApiKey.size() < 100)) &&
+             (!('trialCount' in data) || (data.trialCount is int && data.trialCount >= 0)) &&
+             (!('isUnlimited' in data) || (data.isUnlimited is bool)) &&
+             data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && 
+                      (isAdmin() || (
+                        request.resource.data.email == resource.data.email &&
+                        (!('isUnlimited' in request.resource.data) || request.resource.data.isUnlimited == resource.data.isUnlimited)
+                      )); // Email and isUnlimited immutable for regular users
+      allow delete: if isAdmin();
+    }
+  }
+}

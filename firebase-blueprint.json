@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and preferences",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User's email address"
+        },
+        "language": {
+          "type": "string",
+          "description": "User's preferred language (zh-TW, en, etc.)"
+        },
+        "feeds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "url": { "type": "string" },
+              "type": { "type": "string", "enum": ["rss", "webpage"] },
+              "category": { "type": "string" }
+            }
+          },
+          "description": "List of subscribed feeds"
+        },
+        "userApiKey": {
+          "type": "string",
+          "description": "User's personal Gemini API key"
+        },
+        "trialCount": {
+          "type": "integer",
+          "description": "Number of trial uses remaining if no personal API key is set"
+        },
+        "isUnlimited": {
+          "type": "boolean",
+          "description": "Whether the user has unlimited trial uses"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last time the profile was updated"
+        }
+      },
+      "required": ["email", "feeds", "language"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User specific data including feeds and settings"
+    }
+  }
+}
